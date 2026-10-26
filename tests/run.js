@@ -82,12 +82,12 @@ const cases = [
     expect: { category: "zugang", urgency: "hoch", unclear: false },
   },
   {
-    name: "2FA-Gerät verloren (ausgeschrieben) → Zugang/mittel (gemeldeter Prüffall, aktuell FAIL)",
+    name: "2FA-Gerät verloren (ausgeschrieben) → Zugang/mittel",
     input: "Ich habe mein Handy verloren auf dem meine 2 Faktor Authentifizierung installiert war und komme ich nicht mehr in mein Konto rein.",
     expect: { category: "zugang", urgency: "mittel", unclear: false },
   },
   {
-    name: "2FA-Gerät verloren (Abkürzung \"2fa\") → Zugang/mittel (gemeldeter Prüffall, aktuell FAIL)",
+    name: "2FA-Gerät verloren (Abkürzung \"2fa\") → Zugang/mittel",
     input: "Ich habe mein Handy verloren auf dem meine 2fa Authentifizierung installiert war und komme ich nicht mehr in mein Konto rein.",
     expect: { category: "zugang", urgency: "mittel", unclear: false },
   },
