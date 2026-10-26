@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supportanfrage-Triage</title>
+<meta name="description" content="Regelbasierte Triage-App: ordnet eingefügte Supportanfragen lokal nach Kategorie, Dringlichkeit, nächstem Schritt und Beleg-Zitat ein — ohne externe KI, Datenbank oder Login.">
+<style>
+  :root{
+    --bg:#f3f1ec;
+    --surface:#ffffff;
+    --border:#ddd7c8;
+    --ink:#241f18;
+    --ink-soft:#6b6356;
+    --accent:#2d5d53;
+    --accent-ink:#f3f1ec;
+    --mono-bg:#ece7da;
+    --focus:#2d5d53;
+    --danger-bg:#fbeae7;
+    --danger-ink:#9a3324;
+    --danger-border:#e3b3a7;
+    --warn-bg:#fbf2df;
+    --warn-ink:#8a5a0a;
+    --warn-border:#e8cf9c;
+    --ok-bg:#eaf2e9;
+    --ok-ink:#355e2f;
+    --ok-border:#bfd8bb;
+    --badge-zugang-bg:#e3ebf5;
+    --badge-zugang-ink:#2a4d78;
+    --badge-abrechnung-bg:#ece3f3;
+    --badge-abrechnung-ink:#5a3a82;
+    --badge-technik-bg:#f5e9e0;
+    --badge-technik-ink:#8a4a1f;
+    --badge-sonstiges-bg:#e8e6df;
+    --badge-sonstiges-ink:#54503f;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1b1812;
+      --surface:#242019;
+      --border:#3a352a;
+      --ink:#ede8dc;
+      --ink-soft:#a79e8c;
+      --accent:#7fbca8;
+      --accent-ink:#15241f;
+      --mono-bg:#2c2820;
+      --focus:#7fbca8;
+      --danger-bg:#3a241f;
+      --danger-ink:#f0a897;
+      --danger-border:#6b3b30;
+      --warn-bg:#3a3020;
+      --warn-ink:#f0cd86;
+      --warn-border:#6b5630;
+      --ok-bg:#223527;
+      --ok-ink:#a9d6a1;
+      --ok-border:#3d5c3c;
+      --badge-zugang-bg:#233547;
+      --badge-zugang-ink:#a9c7eb;
+      --badge-abrechnung-bg:#302644;
+      --badge-abrechnung-ink:#cdb3ec;
+      --badge-technik-bg:#402c1c;
+      --badge-technik-ink:#eab488;
+      --badge-sonstiges-bg:#322e24;
+      --badge-sonstiges-ink:#cfc8b4;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1b1812;
+    --surface:#242019;
+    --border:#3a352a;
+    --ink:#ede8dc;
+    --ink-soft:#a79e8c;
+    --accent:#7fbca8;
+    --accent-ink:#15241f;
+    --mono-bg:#2c2820;
+    --focus:#7fbca8;
+    --danger-bg:#3a241f;
+    --danger-ink:#f0a897;
+    --danger-border:#6b3b30;
+    --warn-bg:#3a3020;
+    --warn-ink:#f0cd86;
+    --warn-border:#6b5630;
+    --ok-bg:#223527;
+    --ok-ink:#a9d6a1;
+    --ok-border:#3d5c3c;
+    --badge-zugang-bg:#233547;
+    --badge-zugang-ink:#a9c7eb;
+    --badge-abrechnung-bg:#302644;
+    --badge-abrechnung-ink:#cdb3ec;
+    --badge-technik-bg:#402c1c;
+    --badge-technik-ink:#eab488;
+    --badge-sonstiges-bg:#322e24;
+    --badge-sonstiges-ink:#cfc8b4;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+    padding-inline: 16px;
+    padding-block: 32px;
+    display:flex;
+    justify-content:center;
+    min-height: 100vh;
+  }
+  .page{ width:100%; max-width: 640px; display:flex; flex-direction:column; gap:20px; }
+
+  header.app-head{ display:flex; flex-direction:column; gap:4px; }
+  header.app-head h1{
+    font-family:'Figtree','Segoe UI',system-ui,sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin:0;
+    text-wrap: balance;
+  }
+  header.app-head p{
+    margin:0;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    max-width: 60ch;
+  }
+
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  label.field-label{
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+
+  textarea#input{
+    width:100%;
+    min-height: 140px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.98rem;
+    padding: 12px 14px;
+    line-height: 1.5;
+  }
+  textarea#input:focus-visible{
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .examples{ display:flex; flex-wrap:wrap; gap:8px; }
+  .example-btn{
+    font: inherit;
+    font-size: 0.82rem;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .example-btn:hover{ border-color: var(--accent); color: var(--accent); }
+  .example-btn:focus-visible{ outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .row-between{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap: wrap; }
+
+  #counter{
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+  #counter.over{ color: var(--danger-ink); font-weight:600; }
+
+  button#submit{
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.98rem;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: none;
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    min-width: 170px;
+    justify-content:center;
+  }
+  button#submit:hover{ filter: brightness(1.05); }
+  button#submit:active{ filter: brightness(0.96); }
+  button#submit:focus-visible{ outline: 2px solid var(--focus); outline-offset: 2px; }
+  button#submit:disabled{ opacity: 0.6; cursor: progress; }
+
+  .spinner{
+    width: 14px; height:14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: var(--accent-ink);
+    animation: spin 0.7s linear infinite;
+    flex: none;
+  }
+  @media (prefers-reduced-motion: reduce){ .spinner{ animation-duration: 1.4s; } }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  #status-region{ display:flex; flex-direction:column; gap:14px; }
+
+  .banner{
+    border-radius: 10px;
+    border: 1px solid;
+    padding: 12px 14px;
+    font-size: 0.92rem;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .banner .glyph{ flex: none; font-weight:700; line-height:1.3; }
+  .banner.error{ background: var(--danger-bg); color: var(--danger-ink); border-color: var(--danger-border); }
+  .banner.unclear{ background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-border); }
+
+  .result-card{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .badges{ display:flex; gap:8px; flex-wrap:wrap; }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  .badge .dot{ width:7px; height:7px; border-radius:50%; background: currentColor; }
+
+  .badge.cat-zugang{ background: var(--badge-zugang-bg); color: var(--badge-zugang-ink); }
+  .badge.cat-abrechnung{ background: var(--badge-abrechnung-bg); color: var(--badge-abrechnung-ink); }
+  .badge.cat-technik{ background: var(--badge-technik-bg); color: var(--badge-technik-ink); }
+  .badge.cat-sonstiges{ background: var(--badge-sonstiges-bg); color: var(--badge-sonstiges-ink); }
+
+  .badge.urg-niedrig{ background: var(--ok-bg); color: var(--ok-ink); }
+  .badge.urg-mittel{ background: var(--warn-bg); color: var(--warn-ink); }
+  .badge.urg-hoch{ background: var(--danger-bg); color: var(--danger-ink); }
+
+  .field{ display:flex; flex-direction:column; gap:4px; }
+  .field .k{ font-size: 0.78rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color: var(--ink-soft); }
+  .field .v{ font-size: 0.98rem; line-height:1.5; }
+
+  blockquote.evidence{
+    margin:0;
+    padding: 10px 14px;
+    background: var(--mono-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    font-size: 0.92rem;
+    font-style: italic;
+    line-height: 1.5;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .meta-note{
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--border);
+    padding-top: 10px;
+  }
+
+  footer.hint{
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    text-align:center;
+  }
+  footer.hint strong{ color: var(--ink); font-weight:600; }
+
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="app-head">
+    <h1>Supportanfrage-Triage</h1>
+    <p>Supportanfrage einfügen. Die App ordnet sie lokal nach festen Regeln ein — ohne externe KI, ohne Datenbank, ohne Login.</p>
+  </header>
+
+  <div class="card">
+    <div>
+      <label class="field-label" for="input">Supportanfrage</label>
+      <textarea id="input" placeholder="z. B.: Ich komme seit heute Morgen nicht mehr in mein Konto, das Passwort wird ständig als falsch abgelehnt. Ich habe einen wichtigen Termin und brauche dringend Zugriff."></textarea>
+    </div>
+
+    <div class="examples" aria-label="Beispiele zum Ausprobieren">
+      <button type="button" class="example-btn" data-example="zugang">Beispiel: Zugang</button>
+      <button type="button" class="example-btn" data-example="abrechnung">Beispiel: Abrechnung</button>
+      <button type="button" class="example-btn" data-example="technik">Beispiel: Technik</button>
+      <button type="button" class="example-btn" data-example="unklar">Beispiel: unklar</button>
+    </div>
+
+    <div class="row-between">
+      <span id="counter">0 / 5.000 Zeichen</span>
+      <button type="button" id="submit">
+        <span id="submit-spinner" class="spinner" hidden></span>
+        <span id="submit-label">Anfrage einordnen</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="status-region" aria-live="polite"></div>
+
+  <footer class="hint">Regelbasierte v1 · erkennt Stichworte für Kategorie und Dringlichkeit · erfindet keine Konto- oder Vertragsdaten</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var MAX_LEN = 5000;
+
+  var input = document.getElementById('input');
+  var counter = document.getElementById('counter');
+  var submitBtn = document.getElementById('submit');
+  var submitLabel = document.getElementById('submit-label');
+  var submitSpinner = document.getElementById('submit-spinner');
+  var statusRegion = document.getElementById('status-region');
+
+  var EXAMPLES = {
+    zugang: "Ich komme seit heute Morgen nicht mehr in mein Konto, das Passwort wird ständig als falsch abgelehnt. Ich habe einen wichtigen Termin und brauche dringend Zugriff.",
+    abrechnung: "Auf meiner letzten Rechnung wurde mir ein Betrag doppelt abgebucht. Bitte um Rückerstattung, das ist mir seit zwei Tagen aufgefallen und ärgert mich sehr.",
+    technik: "Die App stürzt ab, sobald ich auf 'Exportieren' klicke. Das passiert seit dem letzten Update mehrmals am Tag, eine Fehlermeldung erscheint aber nicht.",
+    unklar: "Hallo, bei mir geht irgendwie was nicht. Könnt ihr mal schauen?"
+  };
+
+  var CATEGORY_KEYWORDS = {
+    zugang: ['passwort','login','einloggen','anmelden','anmeldung','zugang','zugriff','gesperrt','sperrung','benutzername','konto gesperrt','account gesperrt','zwei-faktor','2fa','pin vergessen','entsperren','registrierung','registrieren','nutzerkonto','benutzerkonto','kann mich nicht anmelden','komme nicht rein','komme nicht mehr rein'],
+    abrechnung: ['rechnung','zahlung','bezahlt','abbuchung','abgebucht','kosten','gebühr','erstattung','rückerstattung','abo','abonnement','kündigen','kündigung','preis','mahnung','kreditkarte','lastschrift','zahlungsmethode','rechnungsbetrag','überzahlt','doppelt bezahlt','falsch berechnet'],
+    technik: ['fehler','bug','absturz','stürzt ab','funktioniert nicht','geht nicht','lädt nicht','hängt sich auf','friert ein','fehlermeldung','server','verbindung','langsam','ladezeit','seite lädt nicht','synchronisiert nicht','upload fehlgeschlagen','download fehlgeschlagen','systemfehler','app hängt']
+  };
+
+  var URGENCY_HOCH = [
+    'komplett blockiert','komplett gesperrt','nichts geht mehr','kein zugriff mehr','totalausfall',
+    'alles steht still','vollständig gesperrt','dauerhaft gesperrt','nichts funktioniert mehr',
+    'komplett ausgefallen','kann nicht mehr arbeiten','produktion steht',
+    'gehackt','hacker','datenleck','unbefugten zugriff','unbefugter zugriff','phishing',
+    'verdächtige aktivität','konto kompromittiert','account kompromittiert','passwort wurde gestohlen',
+    'identitätsdiebstahl','betrugsverdacht','jemand anderes hat zugriff','fremder hat zugriff',
+    'doppelt abgebucht','unerlaubte abbuchung','unautorisierte zahlung','frist läuft heute ab',
+    'heute fällig','mahnbescheid','inkasso','vertragsstrafe','kontopfändung'
+  ];
+
+  var URGENCY_MITTEL = [
+    'funktioniert nicht richtig','teilweise','manchmal','ab und zu','seit tagen','seit stunden',
+    'seit gestern','mehrmals','wiederholt','verzögert','fehlerhaft','falsch berechnet',
+    'falsche rechnung','zu viel berechnet','rückerstattung','erstattung','kündigen','kündigung',
+    'ärgert mich','wichtig','dringend','zeitnah','bald','mehrfach'
+  ];
+
+  var NEXT_STEPS = {
+    zugang: {
+      hoch: 'Sofort an den Support-Notfallkanal eskalieren und Zugang manuell prüfen bzw. zurücksetzen.',
+      mittel: 'Zugangsproblem zeitnah prüfen und Rücksetzung von Passwort/Zugangsdaten anbieten.',
+      niedrig: 'Standard-Ticket für Zugangsanfrage anlegen und in regulärer Reihenfolge bearbeiten.'
+    },
+    abrechnung: {
+      hoch: 'Zahlungsvorgang sofort prüfen und ggf. stornieren, da unmittelbarer finanzieller Schaden droht.',
+      mittel: 'Abrechnungsvorgang zeitnah prüfen und innerhalb von 1–2 Werktagen Rückmeldung geben.',
+      niedrig: 'Anfrage in die reguläre Abrechnungs-Warteschlange einsortieren.'
+    },
+    technik: {
+      hoch: 'Sofort an das technische Eskalationsteam weiterleiten, da ein Totalausfall oder Sicherheitsrisiko vorliegt.',
+      mittel: 'Fehler zeitnah nachstellen und den technischen Support informieren.',
+      niedrig: 'Ticket für technisches Problem anlegen und mit normaler Priorität bearbeiten.'
+    },
+    sonstiges: {
+      hoch: 'Sofort manuell prüfen und an die zuständige Fachabteilung eskalieren.',
+      mittel: 'Anfrage zeitnah manuell prüfen und passender Fachabteilung zuordnen.',
+      niedrig: 'Anfrage manuell prüfen und in regulärer Reihenfolge der passenden Fachabteilung zuordnen.'
+    }
+  };
+
+  var CATEGORY_LABEL = { zugang: 'Zugang', abrechnung: 'Abrechnung', technik: 'Technisches Problem', sonstiges: 'Sonstiges' };
+  var CATEGORY_CLASS = { zugang: 'cat-zugang', abrechnung: 'cat-abrechnung', technik: 'cat-technik', sonstiges: 'cat-sonstiges' };
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  function countMatches(text, keywords){
+    var lower = text.toLowerCase();
+    var count = 0;
+    var hits = [];
+    for (var i = 0; i < keywords.length; i++){
+      if (lower.indexOf(keywords[i]) !== -1){
+        count++;
+        hits.push(keywords[i]);
+      }
+    }
+    return { count: count, hits: hits };
+  }
+
+  function splitSentences(text){
+    var parts = text.split(/(?<=[.!?\n])\s+/).map(function(s){ return s.trim(); }).filter(Boolean);
+    return parts.length ? parts : [text.trim()];
+  }
+
+  function findEvidenceSentence(originalText, keyword){
+    var sentences = splitSentences(originalText);
+    var lowerKeyword = keyword.toLowerCase();
+    for (var i = 0; i < sentences.length; i++){
+      if (sentences[i].toLowerCase().indexOf(lowerKeyword) !== -1){
+        return sentences[i];
+      }
+    }
+    return sentences[0];
+  }
+
+  function truncate(str, max){
+    if (str.length <= max) return str;
+    return str.slice(0, max - 1).trim() + '…';
+  }
+
+  function classify(rawText){
+    var text = rawText.trim();
+
+    var catScores = {
+      zugang: countMatches(text, CATEGORY_KEYWORDS.zugang),
+      abrechnung: countMatches(text, CATEGORY_KEYWORDS.abrechnung),
+      technik: countMatches(text, CATEGORY_KEYWORDS.technik)
+    };
+
+    var bestCategory = 'sonstiges';
+    var bestScore = 0;
+    ['zugang','abrechnung','technik'].forEach(function(key){
+      if (catScores[key].count > bestScore){
+        bestScore = catScores[key].count;
+        bestCategory = key;
+      }
+    });
+
+    var hochMatch = countMatches(text, URGENCY_HOCH);
+    var mittelMatch = countMatches(text, URGENCY_MITTEL);
+
+    var urgency = 'niedrig';
+    if (hochMatch.count > 0){
+      urgency = 'hoch';
+    } else if (mittelMatch.count > 0){
+      urgency = 'mittel';
+    }
+
+    var totalSignals = bestScore + hochMatch.count + mittelMatch.count;
+    var isUnclear = totalSignals === 0 || text.length < 12;
+
+    var evidenceKeyword = null;
+    if (hochMatch.hits.length) evidenceKeyword = hochMatch.hits[0];
+    else if (bestScore > 0) evidenceKeyword = catScores[bestCategory].hits[0];
+    else if (mittelMatch.hits.length) evidenceKeyword = mittelMatch.hits[0];
+
+    var quote;
+    if (evidenceKeyword){
+      quote = findEvidenceSentence(text, evidenceKeyword);
+    } else {
+      quote = splitSentences(text)[0];
+    }
+    quote = truncate(quote, 220);
+
+    if (isUnclear){
+      return {
+        unclear: true,
+        category: 'sonstiges',
+        urgency: 'niedrig',
+        quote: quote,
+        nextStep: 'Rückfrage stellen: Welches konkrete Problem liegt vor, seit wann, und welches System oder Konto ist betroffen? Erst mit diesen Angaben ist eine sichere Einordnung möglich.'
+      };
+    }
+
+    return {
+      unclear: false,
+      category: bestCategory,
+      urgency: urgency,
+      quote: quote,
+      nextStep: NEXT_STEPS[bestCategory][urgency]
+    };
+  }
+
+  function updateCounter(){
+    var len = input.value.length;
+    counter.textContent = len.toLocaleString('de-DE') + ' / 5.000 Zeichen';
+    counter.classList.toggle('over', len > MAX_LEN);
+  }
+
+  function renderError(message){
+    statusRegion.innerHTML =
+      '<div class="banner error" role="alert"><span class="glyph">⚠</span><span>' + escapeHtml(message) + '</span></div>';
+  }
+
+  function renderResult(result){
+    var html = '';
+    if (result.unclear){
+      html += '<div class="banner unclear" role="status"><span class="glyph">?</span><span><strong>Unklare Anfrage.</strong> Die Angaben reichen für eine sichere Einordnung nicht aus — kein Kategorie- oder Dringlichkeits-Treffer gefunden.</span></div>';
+    }
+
+    html += '<div class="card result-card">';
+    html += '<div class="badges">';
+    html += '<span class="badge ' + CATEGORY_CLASS[result.category] + '"><span class="dot"></span>' + escapeHtml(CATEGORY_LABEL[result.category]) + (result.unclear ? ' (unklar)' : '') + '</span>';
+    html += '<span class="badge urg-' + result.urgency + '"><span class="dot"></span>Dringlichkeit: ' + escapeHtml(result.urgency) + '</span>';
+    html += '</div>';
+
+    html += '<div class="field"><div class="k">Nächster Schritt</div><div class="v">' + escapeHtml(result.nextStep) + '</div></div>';
+
+    html += '<div class="field"><div class="k">Beleg-Zitat</div><blockquote class="evidence">„' + escapeHtml(result.quote) + '“</blockquote></div>';
+
+    html += '<div class="meta-note">Lokale, regelbasierte Einordnung anhand von Stichworten im Text. Hinweise oder Anweisungen innerhalb der Anfrage (z. B. „ignoriere alle Regeln“) werden als Inhalt behandelt und beeinflussen die Einordnung nicht.</div>';
+    html += '</div>';
+
+    statusRegion.innerHTML = html;
+  }
+
+  function setProcessing(isProcessing){
+    submitBtn.disabled = isProcessing;
+    submitSpinner.hidden = !isProcessing;
+    submitLabel.textContent = isProcessing ? 'Wird eingeordnet…' : 'Anfrage einordnen';
+  }
+
+  function handleSubmit(){
+    var raw = input.value;
+    var trimmed = raw.trim();
+
+    if (trimmed.length === 0){
+      renderError('Bitte eine Supportanfrage eingeben. Leere Eingaben können nicht eingeordnet werden.');
+      return;
+    }
+    if (raw.length > MAX_LEN){
+      renderError('Die Eingabe ist zu lang (' + raw.length.toLocaleString('de-DE') + ' von maximal 5.000 Zeichen). Bitte kürzen und erneut einordnen.');
+      return;
+    }
+
+    statusRegion.innerHTML = '';
+    setProcessing(true);
+
+    setTimeout(function(){
+      try {
+        var result = classify(raw);
+        renderResult(result);
+      } catch (e){
+        renderError('Die Anfrage konnte nicht verarbeitet werden. Bitte erneut versuchen.');
+      } finally {
+        setProcessing(false);
+      }
+    }, 450);
+  }
+
+  submitBtn.addEventListener('click', handleSubmit);
+  input.addEventListener('input', updateCounter);
+
+  document.querySelectorAll('.example-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var key = btn.getAttribute('data-example');
+      input.value = EXAMPLES[key] || '';
+      updateCounter();
+      input.focus();
+    });
+  });
+
+  updateCounter();
+})();
+</script>
+</body>
+</html>
