@@ -1,0 +1,12 @@
+{
+  "name": "supportanfrage-triage",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test:unit": "node tests/run.js",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}
